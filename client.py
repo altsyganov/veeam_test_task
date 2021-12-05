@@ -70,3 +70,4 @@ if __name__ == '__main__':
             asyncio.run(client.send_message(message))
     except KeyboardInterrupt:
         logging.debug('Connections closed, bye.')
+
