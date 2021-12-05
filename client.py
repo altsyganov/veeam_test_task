@@ -1,5 +1,4 @@
 import asyncio
-import argparse
 import logging
 
 from msgproto import read_msg, send_msg, SEPARATOR
@@ -22,7 +21,6 @@ class Client:
             addr = ('127.0.0.1', 8000)
             reader, writer = await asyncio.open_connection(*addr)
 
-
             await send_msg(writer, self.login.encode())
             logging.debug(f'Sent {self.login!r} to {addr}')
 
@@ -37,21 +35,20 @@ class Client:
         finally:
             writer.close()
 
-
     async def send_message(self, message) -> None:
         try:
             addr = ('127.0.0.1', 8001)
             reader, writer = await asyncio.open_connection(*addr)
-            msg = str(input())
             data = f"{message}{SEPARATOR}{self.token}{SEPARATOR}{self.login}"
             await send_msg(writer, data.encode())
             logging.debug(f'Sent {data!r} to {addr}')
 
             response = await read_msg(reader)
-            logging.debug(f'Received response from {addr}: {response.decode()!r}')
+            logging.debug(
+                f'Received response from {addr}: {response.decode()!r}'
+            )
         finally:
             writer.close()
-
 
 
 if __name__ == '__main__':
@@ -70,4 +67,3 @@ if __name__ == '__main__':
             asyncio.run(client.send_message(message))
     except KeyboardInterrupt:
         logging.debug('Connections closed, bye.')
-

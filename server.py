@@ -36,7 +36,9 @@ class Server:
 
             salt = f'{addr} + {datetime.datetime.now()}'
             hash = sha1(f'{user_uid} {salt}'.encode()).hexdigest()
-            logging.debug(f'Computed key for {user_uid} from {addr} is {hash!r}')
+            logging.debug(
+                f'Computed key for {user_uid} from {addr} is {hash!r}'
+            )
 
             self.clients[hash] = user_uid
 
@@ -47,7 +49,6 @@ class Server:
             logging.debug(f'error {addr} disconnected')
         finally:
             writer.close()
-
 
     async def handle_message(self, reader: asyncio.StreamReader,
                              writer: asyncio.StreamWriter) -> None:
@@ -65,7 +66,9 @@ class Server:
                     logging.info(f"{login} from {addr} sent {user_message}")
                     self.clients.pop(hash)
                 else:
-                    logging.debug(f'{login} from {addr} provided invalid token')
+                    logging.debug(
+                        f'{login} from {addr} provided invalid token'
+                    )
                     response_data = self.UNAUTHORIZED_MSG.format(hash, login)
             except ValueError:
                 logging.debug(f'{addr} sent invalid message')
