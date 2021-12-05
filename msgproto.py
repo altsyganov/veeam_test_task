@@ -7,10 +7,13 @@ SEPARATOR = ',-;'
 
 
 async def read_msg(stream: asyncio.StreamReader) -> bytes:
-    size_bytes = await stream.readexactly(4)
-    size = int.from_bytes(size_bytes, byteorder='big')
-    data = await stream.readexactly(size)
-    return data
+    try:
+        size_bytes = await stream.readexactly(4)
+        size = int.from_bytes(size_bytes, byteorder='big')
+        data = await stream.readexactly(size)
+        return data
+    except asyncio.IncompleteReadError as e:
+        raise StopIteration(e.args)
 
 
 async def send_msg(stream: asyncio.StreamWriter, data: bytes):

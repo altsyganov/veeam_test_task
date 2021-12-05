@@ -28,44 +28,53 @@ class Server:
 
     async def handle_auth(self, reader: asyncio.StreamReader,
                           writer: asyncio.StreamWriter) -> None:
-        addr = writer.get_extra_info('peername')
-        data = await read_msg(reader)
-        user_uid = data.decode()
-        logging.debug(f'Received {user_uid!r} from {addr}')
+        try:
+            addr = writer.get_extra_info('peername')
+            data = await read_msg(reader)
+            user_uid = data.decode()
+            logging.debug(f'Received {user_uid!r} from {addr}')
 
-        salt = f'{addr} + {datetime.datetime.now()}'
-        hash = sha1(f'{user_uid} {salt}'.encode()).hexdigest()
-        logging.debug(f'Computed key for {user_uid} from {addr} is {hash!r}')
+            salt = f'{addr} + {datetime.datetime.now()}'
+            hash = sha1(f'{user_uid} {salt}'.encode()).hexdigest()
+            logging.debug(f'Computed key for {user_uid} from {addr} is {hash!r}')
 
-        self.clients[hash] = user_uid
+            self.clients[hash] = user_uid
 
-        await send_msg(writer, hash.encode())
+            await send_msg(writer, hash.encode())
 
-        logging.debug(f'Close the connection with {addr}')
-        writer.close()
+            logging.debug(f'Close the connection with {addr}')
+        except RuntimeError:
+            logging.debug(f'error {addr} disconnected')
+        finally:
+            writer.close()
+
 
     async def handle_message(self, reader: asyncio.StreamReader,
                              writer: asyncio.StreamWriter) -> None:
-        addr = writer.get_extra_info('peername')
-        data = await read_msg(reader)
         try:
-            user_message, hash, login = data.decode().split(maxsplit=2,
-                                                            sep=SEPARATOR)
-            response_data = self.SUCCESS_MESSAGE
-            logging.debug(f'Received {data.decode()!r} from {addr}')
-            if self.clients.get(hash) == login:
-                logging.debug(f'{login} from {addr} authorized')
-                # Здесь записывает полученное сообщение в лог-файл
-                logging.info(f"{login} from {addr} sent {user_message}")
-                self.clients.pop(hash)
-            else:
-                logging.debug(f'{login} from {addr} provided invalid token')
-                response_data = self.UNAUTHORIZED_MSG.format(hash, login)
-        except ValueError:
-            logging.debug(f'{addr} sent invalid message')
-            response_data = self.INCORRECT_MSG_FORMAT
-        await send_msg(writer, response_data.encode())
-        writer.close()
+            addr = writer.get_extra_info('peername')
+            data = await read_msg(reader)
+            try:
+                user_message, hash, login = data.decode().split(maxsplit=2,
+                                                                sep=SEPARATOR)
+                response_data = self.SUCCESS_MESSAGE
+                logging.debug(f'Received {data.decode()!r} from {addr}')
+                if self.clients.get(hash) == login:
+                    logging.debug(f'{login} from {addr} authorized')
+                    # Здесь записывает полученное сообщение в лог-файл
+                    logging.info(f"{login} from {addr} sent {user_message}")
+                    self.clients.pop(hash)
+                else:
+                    logging.debug(f'{login} from {addr} provided invalid token')
+                    response_data = self.UNAUTHORIZED_MSG.format(hash, login)
+            except ValueError:
+                logging.debug(f'{addr} sent invalid message')
+                response_data = self.INCORRECT_MSG_FORMAT
+            await send_msg(writer, response_data.encode())
+        except RuntimeError:
+            logging.debug(f'{addr} disconnected')
+        finally:
+            writer.close()
 
 
 async def main():
@@ -91,4 +100,7 @@ async def main():
         await message_server.serve_forever()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.debug('Connections closed, server down')
